@@ -85,6 +85,7 @@ contract Faucet is Ownable, ReentrancyGuard {
     /// @notice Updates the Merkle root whitelist.
     /// @dev Only callable by the owner.
     /// @param newRoot The new Merkle root; cannot be zero.
+    /// @param newDepth The new treeDepth for valid proofs.
     /// @custom:revert Faucet_InvalidMerkleRoot If `newRoot` is zero.
     function updateRoot(bytes32 newRoot, uint256 newDepth) external onlyOwner {
         if (newRoot == bytes32(0)) revert Faucet_InvalidMerkleRoot();
