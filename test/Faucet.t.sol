@@ -12,7 +12,7 @@ contract FaucetTest is Test {
     address public constant OWNER = address(0xABCD);
     address public constant SENDER = address(0xCAFE);
     address public constant ALICE = address(0x1111);
-    address public constant BOB   = address(0x2222);
+    address public constant BOB = address(0x2222);
     address public constant CAROL = address(0x3333);
     address public constant HACKER = address(0x4444);
 
@@ -88,12 +88,12 @@ contract FaucetTest is Test {
         vm.expectEmit(true, false, false, true);
         emit Deposited(address(this), sendAmount);
 
-        (bool success, ) = address(faucet).call{value: sendAmount}("");
+        (bool success,) = address(faucet).call{value: sendAmount}("");
         assertTrue(success, "Call to receive() with fuzzed value should succeed");
     }
 
     function test_receive_zeroAmount() public {
-        (bool success, ) = address(faucet).call{value: 0}("");
+        (bool success,) = address(faucet).call{value: 0}("");
         assertTrue(success, "Call to receive() with fuzzed value should succeed");
     }
 
@@ -220,5 +220,4 @@ contract FaucetTest is Test {
         assertEq(faucet.claimedToday(ALICE), amountLimit);
         assertEq(faucet.lastClaimDay(ALICE), block.timestamp / 1 days);
     }
-
 }

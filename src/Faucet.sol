@@ -6,48 +6,48 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /// @notice Thrown when the Merkle root has not yet been set by the owner.
-    error Faucet_RootNotSet();
+error Faucet_RootNotSet();
 
 /// @notice Thrown when Merkle verification fails.
-    error Faucet_NotWhitelisted();
+error Faucet_NotWhitelisted();
 
 /// @notice Thrown when sender attempts to dispense above allowed limit or send 0 amount.
-    error Faucet_InvalidAmount();
+error Faucet_InvalidAmount();
 
 /// @notice Thrown when sender attempts to dispense funds when Faucet is too low.
-    error Faucet_InsufficientFunds();
+error Faucet_InsufficientFunds();
 
 /// @notice Thrown when sender attempts to exceed their allowed daily limit.
-    error Faucet_AlreadyClaimedToday();
+error Faucet_AlreadyClaimedToday();
 
 /// @notice Thrown when Faucet fails to transfer funds to sender.
-    error Faucet_DispenseFailed();
+error Faucet_DispenseFailed();
 
 /// @notice Thrown when Faucet fails to transfer entire balance to owner.
-    error Faucet_WithdrawalFailed();
+error Faucet_WithdrawalFailed();
 
 /// @notice Thrown when owner attempts to withdraw with no funds in Faucet.
-    error Faucet_NoFundsAvailable();
+error Faucet_NoFundsAvailable();
 
 /// @notice Thrown when sender attempts to verify proof with incorrect length.
-    error Faucet_InvalidProofLength();
+error Faucet_InvalidProofLength();
 
 /// @notice Thrown when owner attempts to update Merkle root with incorrect length.
-    error Faucet_InvalidMerkleRoot();
+error Faucet_InvalidMerkleRoot();
 
 /// @title Faucet
 /// @author Ricki Moore (Mavrik)
 /// @notice A simple ETH Faucet supporting Merkle-tree whitelisting and daily claim limits. The owner can set the daily limit to 0 to “freeze” all claims until ready.
 /**
-    @dev Inherits OpenZeppelin’s Ownable and ReentrancyGuard for access control and reentrancy protection.
-    `updateRoot` allows owner to update the merkleRoot whitelist allowing new users to dispense until reaching daily max.
-    `dispense` keeps track and updates `lastClaimDay` and `claimedToday` allowing protection from excess claims in one day.
-    `setDailyLimit` allows for 0 as `_newLimit`, this will allow owner to freeze/unfreeze the faucet as needed.
-*/
+ * @dev Inherits OpenZeppelin’s Ownable and ReentrancyGuard for access control and reentrancy protection.
+ *     `updateRoot` allows owner to update the merkleRoot whitelist allowing new users to dispense until reaching daily max.
+ *     `dispense` keeps track and updates `lastClaimDay` and `claimedToday` allowing protection from excess claims in one day.
+ *     `setDailyLimit` allows for 0 as `_newLimit`, this will allow owner to freeze/unfreeze the faucet as needed.
+ */
 contract Faucet is Ownable, ReentrancyGuard {
     bytes32 public merkleRoot;
     uint256 public treeDepth;
-    uint256 public dailyLimit;  // max wei per address per day.
+    uint256 public dailyLimit; // max wei per address per day.
 
     mapping(address => uint256) public lastClaimDay;
     mapping(address => uint256) public claimedToday;
@@ -123,10 +123,7 @@ contract Faucet is Ownable, ReentrancyGuard {
     /// @custom:revert Faucet_NotWhitelisted   If Merkle proof verification fails.
     /// @custom:revert Faucet_AlreadyClaimedToday If claimant would exceed their daily limit.
     /// @custom:revert Faucet_DispenseFailed   If ETH transfer to `msg.sender` fails.
-    function dispense(uint256 amount, bytes32[] calldata proof)
-    external
-    nonReentrant
-    {
+    function dispense(uint256 amount, bytes32[] calldata proof) external nonReentrant {
         if (merkleRoot == bytes32(0)) revert Faucet_RootNotSet();
         if (proof.length != treeDepth) revert Faucet_InvalidProofLength();
         if (amount == 0 || amount > dailyLimit) revert Faucet_InvalidAmount();
@@ -149,7 +146,7 @@ contract Faucet is Ownable, ReentrancyGuard {
 
         claimedToday[msg.sender] += amount;
 
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        (bool success,) = payable(msg.sender).call{value: amount}("");
         if (!success) revert Faucet_DispenseFailed();
 
         emit Dispensed(msg.sender, amount);
@@ -164,7 +161,7 @@ contract Faucet is Ownable, ReentrancyGuard {
         uint256 balance = address(this).balance;
         if (balance == 0) revert Faucet_NoFundsAvailable();
 
-        (bool success, ) = to.call{value: balance}("");
+        (bool success,) = to.call{value: balance}("");
         if (!success) revert Faucet_WithdrawalFailed();
 
         emit Withdrawn(to, balance);
