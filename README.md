@@ -1,3 +1,9 @@
+# Welcome to the Faucet contract! 🚰
+
+This faucet uses a Merkle-tree whitelist and daily limits to securely hand out test ETH. It’s perfect for getting quickly funded on the new Hoodi and Holesky test networks, and comes with a comprehensive Foundry test suite (unit, fuzz, and integration tests) to ensure reliability. Anyone can help fund the faucet but only the contract deployer manages the whitelist.
+
+
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
