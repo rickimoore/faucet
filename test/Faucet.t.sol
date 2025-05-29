@@ -193,7 +193,6 @@ contract FaucetTest is Test {
         faucet.dispense(amount, proof);
     }
 
-
     function test_dispense_notWhitelisted_revert() public {
         uint256 limit = 1 ether;
         vm.prank(OWNER);
