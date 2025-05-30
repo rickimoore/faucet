@@ -40,9 +40,14 @@ contract FaucetTest is Test {
         faucet.updateRoot(root, proof.length);
     }
 
-    function test_owner_updateRoot() public {
-        bytes32 newRoot = keccak256("whitelist!");
-        uint256 newDepth = 0;
+    /// @dev Returns the selector for the given error signature,
+    /// e.g. "Faucet_NotWhitelisted()" → 0x<first-4-bytes-of-keccak256>
+    function errorSelector(string memory sig) internal pure returns (bytes4) {
+        return bytes4(keccak256(bytes(sig)));
+    }
+
+    function test_owner_updateRoot(bytes32 newRoot, uint256 newDepth) public {
+        vm.assume(newRoot != bytes32(0));
 
         vm.expectEmit(false, false, false, true);
         emit WhiteListUpdated(newRoot, newDepth);
@@ -56,18 +61,13 @@ contract FaucetTest is Test {
     }
 
     function test_owner_empty_updateRoot() public {
-        bytes32 initialRoot = keccak256("some real merkle root");
-        vm.prank(OWNER);
-        faucet.updateRoot(initialRoot, 0);
-
         bytes32 newRoot = bytes32(0);
 
-        vm.expectRevert();
+        vm.expectRevert(errorSelector("Faucet_InvalidMerkleRoot()"));
         vm.prank(OWNER);
         faucet.updateRoot(newRoot, 0);
 
-        // Verify storage slot updated
-        assertEq(faucet.merkleRoot(), initialRoot);
+        assertEq(faucet.merkleRoot(), root);
     }
 
     function test_sender_updateRoot_revert() public {
@@ -127,68 +127,81 @@ contract FaucetTest is Test {
         address payable payableOwner = payable(OWNER);
         uint256 prevBal = payableOwner.balance;
 
-        vm.expectRevert();
+        vm.expectRevert(errorSelector("Faucet_NoFundsAvailable()"));
         vm.prank(OWNER);
         faucet.withdrawAll(payableOwner);
 
         assertEq(payableOwner.balance, prevBal);
     }
 
-    function test_sender_withdrawal() public {
+    function test_sender_withdrawal_revert() public {
         vm.deal(address(faucet), 5 ether);
-        address payable payableOwner = payable(SENDER);
+        address payable payableOwner = payable(HACKER);
         uint256 prevBal = payableOwner.balance;
 
         vm.expectRevert();
-        vm.prank(SENDER);
+        vm.prank(HACKER);
         faucet.withdrawAll(payableOwner);
 
         assertEq(payableOwner.balance, prevBal);
     }
 
     function test_dispense_noRoot_revert() public {
-        vm.prank(OWNER);
-        faucet.updateRoot(root, 0);
+        Faucet fresh = new Faucet(0);
         bytes32[] memory proof = merkle.getProof(leaves, 0);
         vm.prank(ALICE);
-        vm.expectRevert();
+        vm.expectRevert(errorSelector("Faucet_RootNotSet()"));
+        fresh.dispense(0.1 ether, proof);
+    }
+
+    function test_dispense_invalidProofLength_revert(uint256 proofLength) public {
+        uint256 depth = faucet.treeDepth();
+        vm.assume(proofLength != depth);
+        vm.assume(proofLength < depth + 1);
+
+        bytes32[] memory proof = new bytes32[](proofLength);
+
+        vm.prank(ALICE);
+        vm.expectRevert(errorSelector("Faucet_InvalidProofLength()"));
         faucet.dispense(0.1 ether, proof);
     }
 
-    function test_dispense_invalidProofLength_revert() public {
-        vm.prank(ALICE);
-        vm.expectRevert();
-        faucet.dispense(0.1 ether, new bytes32[](0));
-    }
+    function test_dispense_invalidAmount_aboveLimit_revert(uint256 amount) public {
+        uint256 limit = 0.5 ether;
+        vm.assume(amount > limit);
 
-    function test_dispense_invalidAmount_aboveLimit_revert() public {
         vm.prank(OWNER);
-        faucet.setDailyLimit(0.5 ether);
+        faucet.setDailyLimit(limit);
 
         bytes32[] memory proof = merkle.getProof(leaves, 0);
         vm.prank(ALICE);
-        vm.expectRevert();
-        faucet.dispense(1 ether, proof);
+        vm.expectRevert(errorSelector("Faucet_InvalidAmount()"));
+        faucet.dispense(amount, proof);
     }
 
-    function test_dispense_insufficientFunds_revert() public {
+    function test_dispense_insufficientFunds_revert(uint256 amount) public {
+        vm.deal(address(this), 2 ether);
+        uint256 limit = 5 ether;
+
+        vm.assume(amount > 0 && amount < limit);
         vm.prank(OWNER);
-        faucet.setDailyLimit(1 ether);
+        faucet.setDailyLimit(limit);
 
         bytes32[] memory proof = merkle.getProof(leaves, 0);
         vm.prank(ALICE);
-        vm.expectRevert();
-        faucet.dispense(0.5 ether, proof);
+        vm.expectRevert(errorSelector("Faucet_InsufficientFunds()"));
+        faucet.dispense(amount, proof);
     }
 
     function test_dispense_notWhitelisted_revert() public {
+        uint256 limit = 1 ether;
         vm.prank(OWNER);
-        faucet.setDailyLimit(1 ether);
+        faucet.setDailyLimit(limit);
 
-        vm.deal(address(faucet), 1 ether);
+        vm.deal(address(faucet), limit + 1 ether);
         bytes32[] memory proof = merkle.getProof(leaves, 0);
         vm.prank(HACKER);
-        vm.expectRevert();
+        vm.expectRevert(errorSelector("Faucet_NotWhitelisted()"));
         faucet.dispense(0.1 ether, proof);
     }
 
@@ -196,12 +209,12 @@ contract FaucetTest is Test {
         vm.prank(OWNER);
         faucet.setDailyLimit(0.7 ether);
 
-        vm.deal(address(faucet), 1 ether);
+        vm.deal(address(faucet), 5 ether);
         bytes32[] memory proof = merkle.getProof(leaves, 0);
         vm.prank(ALICE);
         faucet.dispense(0.7 ether, proof);
         vm.prank(ALICE);
-        vm.expectRevert();
+        vm.expectRevert(errorSelector("Faucet_AlreadyClaimedToday()"));
         faucet.dispense(0.4 ether, proof);
     }
 
